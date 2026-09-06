@@ -721,7 +721,7 @@ fn run_evict(args: &[String]) -> ExitCode {
 fn engine_status() -> Result<String, String> {
     let dir = engine::resolve_dir()?;
     let plan = engine::plan("status", &[])?;
-    engine::execute(&dir, &plan)
+    engine::execute_with_timeout(&dir, &plan, std::time::Duration::from_secs(60))
 }
 
 /// `burrow snapshot` — capture a status sample into the CLI-side history store.
