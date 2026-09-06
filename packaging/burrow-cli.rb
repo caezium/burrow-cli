@@ -16,9 +16,24 @@ class BurrowCli < Formula
 
   def install
     system "cargo", "install", *std_cargo_args
+    pkgshare.install "LICENSE.md", "NOTICE", "THIRD-PARTY-LICENSES.md", "LICENSES"
   end
 
   test do
+    require "json"
+    require "digest"
+    ["LICENSE.md", "NOTICE", "THIRD-PARTY-LICENSES.md"].each do |name|
+      assert_predicate pkgshare/name, :file?
+    end
+    inventory = JSON.parse((pkgshare/"LICENSES/cargo-packages.json").read)
+    assert_operator inventory.length, :>, 0
+    inventory.each do |package|
+      package.fetch("texts").each do |text|
+        path = pkgshare/text.fetch("file")
+        assert_predicate path, :file?
+        assert_equal text.fetch("sha256"), Digest::SHA256.file(path).hexdigest
+      end
+    end
     assert_match "burrow", shell_output("#{bin}/burrow version")
     # A conductor-native preview works without installing a separate engine.
     require "json"

@@ -1,0 +1,2 @@
+# Preserve original notice bytes and inventory hashes on every platform.
+LICENSES/** -text -whitespace

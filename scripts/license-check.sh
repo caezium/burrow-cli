@@ -10,6 +10,9 @@ cd "$(dirname "$0")/.."
 
 fail=0
 
+echo "== verifying complete locked Cargo notices =="
+python3 scripts/cargo-notices.py --check
+
 echo "== scanning vendored third-party LICENSE / COPYING files =="
 while IFS= read -r f; do
   case "$f" in

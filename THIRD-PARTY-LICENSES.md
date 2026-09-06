@@ -14,10 +14,21 @@ The direct dependencies declared in `Cargo.toml` are:
 | serde_json | MIT OR Apache-2.0 | <https://github.com/serde-rs/json> |
 | trash | MIT | <https://github.com/Byron/trash-rs> |
 
-`Cargo.lock` pins the complete dependency graph. `cargo deny check licenses` and
-`scripts/license-check.sh` audit dependency metadata against `deny.toml`; they do not replace
-the copyright/license notices required when redistributing dependency source or binaries.
-Crate archives include their own license files.
+`Cargo.lock` pins the complete dependency graph. The full original license and notice files
+for every resolved dependency, including transitive, build and target-specific packages, are
+included under [`LICENSES/cargo/`](LICENSES/cargo/). The complete
+[package inventory](LICENSES/cargo-packages.json) records versions, upstream license expressions,
+source repositories and SHA-256 hashes for each notice. [LICENSES/README.md](LICENSES/README.md)
+describes the audited upstream exceptions and regeneration procedure.
+
+`cargo deny check licenses` checks the dependency policy. `scripts/license-check.sh` also
+verifies that the bundled notice inventory matches the locked graph and original source files.
+Windows CI artifacts and the Homebrew package install `LICENSE.md`, `NOTICE`, this file, and
+the complete `LICENSES/` tree alongside the binary or in its package share directory.
+
+These files cover the Cargo dependency graph. Binary distributors must additionally preserve
+the applicable Rust toolchain/standard-library notices and notices for separately bundled
+engines or tools; those components are not vendored in this source snapshot.
 
 ## Separate-process runtimes
 
