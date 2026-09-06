@@ -1,0 +1,27 @@
+Burrow CLI
+Copyright 2026 caezium
+
+Licensed under the Functional Source License 1.1 (Apache-2.0 future license).
+See LICENSE.md. Publication does not change these terms.
+
+Linked Rust dependencies and optional separate-process components are listed in
+THIRD-PARTY-LICENSES.md. Their own licenses and copyright notices remain in force.
+
+The current runtime is caezium/burrow-engine, the FSL-1.1-ALv2 Rust engine:
+https://github.com/caezium/burrow-engine
+It is invoked as a separate process, not linked into this CLI. See that project's
+THIRD-PARTY-NOTICES.md for the upstream code adapted into the engine.
+
+The historical MIT Bash/Go engine is caezium/burrow-digger, formerly named
+burrow-engine. It is distinct from the current Rust engine. Its tw93/Mole MIT
+notice is retained in THIRD-PARTY-LICENSES.md as historical attribution.
+
+Optional separate-process tools:
+  - fclones — MIT — https://github.com/pkolaczk/fclones
+  - czkawka_core / czkawka_cli — MIT — https://github.com/qarmin/czkawka
+    The GPL Krokiet/Cedinia frontends are not incorporated.
+  - Bulk Crap Uninstaller — Apache-2.0 —
+    https://github.com/Klocman/Bulk-Crap-Uninstaller
+
+No copyleft source is incorporated into this CLI. Dependency license metadata
+is checked in CI; the provenance of adapted ideas is recorded in PROVENANCE.md.

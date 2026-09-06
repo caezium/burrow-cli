@@ -1,0 +1,1 @@
+{"ok":false,"burrow_cli":"0.1.0","engine":"burrow-engine","command":"orphans","error":{"kind":"unsupported","message":"installed-app inventory unavailable: cannot read /Applications: Operation not permitted (os error 1)","platform":"macos"},"feature":"orphans"}

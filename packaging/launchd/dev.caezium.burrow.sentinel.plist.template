@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Trash sentinel (Phase 5): announce newly-trashed .app bundles as NDJSON events.
+     Install: sed s/__USER__/$USER/ + copy to ~/Library/LaunchAgents/, then
+     launchctl load ~/Library/LaunchAgents/dev.caezium.burrow.sentinel.plist -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>dev.caezium.burrow.sentinel</string>
+  <key>ProgramArguments</key><array>
+    <string>/usr/local/bin/burrow</string>
+    <string>sentinel</string>
+    <string>--watch</string>
+    <string>--interval-ms</string><string>15000</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Users/__USER__/Library/Logs/burrow-sentinel.log</string>
+  <key>StandardErrorPath</key><string>/Users/__USER__/Library/Logs/burrow-sentinel.err.log</string>
+</dict></plist>

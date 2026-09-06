@@ -1,0 +1,1 @@
+{"ok":false,"burrow_cli":"0.1.0","engine":"burrow-engine","command":"evict","error":{"kind":"error","message":"evict: needs at least one path","platform":"macos"}}

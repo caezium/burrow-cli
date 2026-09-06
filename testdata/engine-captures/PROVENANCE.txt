@@ -1,0 +1,114 @@
+Real `burrow-engine` failure envelopes, captured verbatim from a release build.
+
+These are CAPTURES, not fixtures: every byte is stdout from the actual engine binary, so the
+tests that load them assert against what the engine really emits rather than against a shape
+someone typed out by hand (RULEBOOK section 3e).
+
+FIRST BATCH — the four below. Captured 2026-08-08 at 10:28 local, macOS 25.5.0 (arm64), from a
+`cargo build --release` of burrow-engine at e1b46b6 ("chore: untrack .DS_Store"), reporting
+burrow_cli 0.1.0. That checkout had another
+author's work uncommitted at the time, so every message string below was checked against
+`git show HEAD:` for the file it comes from and is present at the commit as stated — the captures
+are of the committed wording, not of somebody's in-flight edit.
+
+The two `unsupported` captures needed their failure PROVOKED on macOS, where both commands
+normally succeed. `sandbox-exec` does that honestly — the engine's own code takes its own error
+branch because the syscall really was refused — instead of a hand-written stub pretending to.
+
+
+net-unsupported.json
+    sandbox-exec -p '(version 1)(allow default)
+                     (deny process-exec* (literal "/usr/bin/nettop"))' \
+      burrow-engine net --limit 1
+
+    `/usr/bin/nettop` still exists, so `net::resolve_nettop` succeeds and `run_nettop` is the
+    thing that fails — `cli.rs:372`'s `unsupported_envelope`, kind `unsupported`.
+
+
+orphans-unsupported.json
+    sandbox-exec -p '(version 1)(allow default)
+                     (deny file-read* (subpath "/Applications"))' \
+      burrow-engine orphans /tmp
+
+    `orphan::enumerate_installed_apps_checked` cannot `read_dir("/Applications")`, so the
+    inventory is missing rather than empty — `cli.rs:447`'s `unsupported_envelope`.
+
+
+slim-check-error.json
+    burrow-engine slim-check <the burrow-engine binary itself>
+
+    A Rust-built binary is a thin Mach-O, so `macho::parse_fat` refuses it. This one goes
+    through `error_envelope` (`cli.rs:499`), and the engine's OWN wording table classifies it
+    `error` — which is why relaying the kind does not change this command's answer. Kept as the
+    capture that proves the relay reports `error` when `error` is what the engine said, rather
+    than only ever upgrading things to `unsupported`.
+
+
+net-unsupported-reworded.json
+    THE REGRESSION CAPTURE. Same `net` invocation and sandbox as above, but against an engine
+    whose message was reworded — `"per-app network unavailable: "` replaced with the same-length
+    `"per-app network is off here: "`, patched into a COPY of the release binary and ad-hoc
+    re-signed (`codesign --force --sign -`). The engine source was never modified; nothing in
+    the engine repo was touched.
+
+    The point of the reword is that the new message contains NONE of the substrings
+    `output::error_kind` triggers on, while the engine still classifies it `unsupported`. So a
+    conductor that re-derives the kind from the wording answers `error` here and a conductor
+    that relays the engine's answers `unsupported` — the two are distinguishable on this one
+    capture and on nothing else the current engine emits.
+
+    Rewording an error message is an ordinary, non-breaking thing to do in the engine, which is
+    what makes deriving the kind from its prose the wrong contract.
+
+
+SECOND BATCH — the two below. Same day, 2026-08-08, but a strictly later engine: a release build
+at 0dd5997 ("fix(dupes): an apply emitted invalid JSON for a run that really deleted the file"),
+also reporting burrow_cli 0.1.0. "Later" is the commit graph, not just the clock — e1b46b6 is an
+ancestor of 0dd5997, and 5e42bf0 sits between them. The clock agrees: e1b46b6 committed 08:29,
+first batch captured 10:28, 5e42bf0 committed 10:53, 0dd5997 committed 11:16, second batch
+captured 11:35, all local time on 2026-08-08. So the first batch predates the platform guards and
+the second postdates them, which is the only ordering under which both batches are what they say.
+That second build is the one whose 5e42bf0 platform guards let
+`engine::windows_refusal` be retired here, so these two exist to pin the consequence: `evict`
+and `sentinel` are now SPAWNED on every platform instead of pre-empted, and whatever the engine
+answers is what the caller gets.
+
+Neither needed a sandbox or a patched binary. Each command has an honest failure it reaches on
+macOS by itself, and a failure envelope for the RIGHT command is what the replay test needs —
+replaying `net`'s refusal under `burrow evict` would prove the spawn but describe the wrong
+command.
+
+
+evict-error.json                                                                   (exit code 2)
+    burrow-engine evict
+
+    No path at all. `evict::parse` refuses, and the refusal is deliberately checked BEFORE the
+    platform gate (`cli.rs:516`) so that malformed argv is called malformed on every platform —
+    the engine's `evict.golden.provenance.txt` records that exact sentence as the oracle's answer
+    and says an engine that accepts the no-arg form has diverged. Kind `error`, exit 2: the only
+    capture here that does not exit 1, which is why `replaying_engine` takes the code.
+
+
+sentinel-not-found.json                                                            (exit code 1)
+    env -u HOME burrow-engine sentinel
+
+    No positional, so the engine has to infer the trash directory, and `home_or_refuse` cannot
+    tell it where home is. Kind `not_found` — a third classification, distinct from the
+    `unsupported` and `error` already captured, so the relay is now exercised on every kind the
+    engine actually emits.
+
+    This is also the gate that sits ABOVE the off-macOS platform refusal in `cli.rs:2296`, and
+    the ordering is deliberate on the engine's side: "I do not know where your home is" is the
+    more specific answer, so it wins even on the platforms where the inferred `~/.Trash` would
+    have been refused anyway.
+
+
+WHAT IS NOT CAPTURED HERE, and cannot be from a macOS build: the off-macOS refusals themselves —
+`sentinel`'s inferred-trash gate, `evict`'s platform gate, and the `dupes --apply` Windows guard.
+Their predicates are `std::env::consts::OS` compared against a literal, so on a macOS host the
+compiler folds every one of them to the served branch and dead-strips the refusal arms; none of
+`"sentinel default trash"`, `"cloud-file dehydration needs macOS brctl"` or `"Windows duplicate
+discovery is read-only"` appears anywhere in the release binary's bytes. There is no sandbox and
+no same-length patch that can provoke code the linker removed. Those three are pinned in the
+engine's own suite, which passes the OS in as an argument and therefore runs all three platforms'
+answers on any host.

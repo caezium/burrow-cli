@@ -1,0 +1,1 @@
+{"ok":false,"burrow_cli":"0.1.0","engine":"burrow-engine","command":"sentinel","error":{"kind":"not_found","message":"home directory not found: neither HOME nor USERPROFILE is set to a usable path","platform":"macos"}}

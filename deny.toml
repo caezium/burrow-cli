@@ -1,0 +1,23 @@
+# cargo-deny — enforce "no copyleft in dependencies" for Burrow CLI's Rust deps.
+# Anything whose license is not in `allow` fails the check, which keeps GPL/AGPL/SSPL out.
+
+# Our own crate is FSL-1.1-ALv2 (a LicenseRef, not SPDX) and publish = false — skip it;
+# this check governs DEPENDENCIES, which must stay permissive (no copyleft).
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Unicode-3.0", # required by unicode-ident: "(MIT OR Apache-2.0) AND Unicode-3.0"
+]
+confidence-threshold = 0.9
+private = { ignore = true }
+
+[bans]
+multiple-versions = "warn"
+
+[advisories]
+yanked = "warn"
+
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"

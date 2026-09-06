@@ -1,0 +1,27 @@
+[package]
+name = "burrow-cli"
+version = "0.0.1"
+edition = "2021"
+license = "LicenseRef-FSL-1.1-ALv2"
+description = "Agent-native macOS system-cleaning CLI — conductor over burrow-engine."
+repository = "https://github.com/caezium/burrow-cli"
+publish = false
+
+[[bin]]
+name = "burrow"
+path = "src/main.rs"
+
+[dependencies]
+# Permissive-only (enforced by deny.toml + CI): serde tree is MIT/Apache-2.0/Unicode-3.0.
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+trash = "5.2.6"
+
+# `image` and `windows-sys` were dropped when the overlapping commands moved to the engine:
+# `image` decoded PNG/JPEG for `photos`' perceptual hash and `windows-sys` was the IP-Helper
+# walk behind `net` on Windows, and each had exactly one user. `image` still ships — as the
+# engine's own dependency, where the `photos` implementation now lives.
+
+[profile.release]
+strip = true
+lto = true

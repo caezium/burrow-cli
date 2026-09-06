@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Scheduled low-disk auto-clean planning (Phase 8): every 6h, when disk usage crosses the
+     threshold, emit the plan of auto-opted (risk:safe, conditions-met) rule targets. The plan
+     is REVIEW-THEN-APPLY by design: `burrow trash --apply-plan <file>` previews the held plan and
+     `burrow trash --apply-plan <file> --apply` executes it; wire the second form into your own
+     wrapper if you want unattended cleaning. Install like the sentinel plist. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>dev.caezium.burrow.trigger</string>
+  <key>ProgramArguments</key><array>
+    <string>/usr/local/bin/burrow</string>
+    <string>trigger</string>
+    <string>--threshold</string><string>85</string>
+    <string>--rules</string><string>/Users/__USER__/.burrow/rules</string>
+  </array>
+  <key>StartInterval</key><integer>21600</integer>
+  <key>StandardOutPath</key><string>/Users/__USER__/Library/Logs/burrow-trigger.log</string>
+  <key>StandardErrorPath</key><string>/Users/__USER__/Library/Logs/burrow-trigger.err.log</string>
+</dict></plist>

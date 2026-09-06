@@ -1,0 +1,148 @@
+#!/bin/sh
+# Test fixture standing in for the real `burrow-engine` binary.
+#
+# It reproduces the parts of the engine's CONTRACT the conductor depends on, so the integration
+# tests exercise the repoint rather than a friendlier invention:
+#
+#   * every answer is the envelope `{ok, burrow_cli, engine, command, data}` — including failures,
+#     which carry `error {kind, message}` instead of `data`;
+#   * everything goes to STDOUT and stderr stays empty (the real binary is one `println!`), so a
+#     conductor that reads stderr for the reason gets nothing;
+#   * `--raw` is REFUSED with exit 2, because the engine has exactly one output mode;
+#   * an unknown flag (`--watch-interval`, or a stream flag on a command that has no such
+#     stream) is REFUSED with exit 2 rather than accepted and ignored;
+#   * `--apply` together with `--dry-run`/`-n` is REFUSED with exit 2;
+#   * `uninstall --list` prints a BARE JSON ARRAY with no envelope at all;
+#   * the five raw streams print NDJSON and no envelope, one frame per line:
+#       - `clean`/`optimize`/`purge` with `--stream`: the `clean --stream` vocabulary —
+#         `would_remove` frames then a `done` frame for a preview, `removed` frames then a
+#         `done` frame under `--apply`;
+#       - `status --watch [--interval <secs>]`: one line per tick, each the buffered `status`
+#         `data` object, `BURROW_WATCH_FRAMES` ticks (default 2 here; unbounded in the real one);
+#       - `analyze --progress <path>`: `{"type":"progress",…}` frames then one
+#         `{"type":"result","data":…}`; a path that does not exist ends the stream with the
+#         buffered command's ERROR ENVELOPE as the last line and exit 1, as the engine does.
+#
+# `data.invoked` (and the `done` frame's `invoked`) echoes the argv so tests can assert exactly
+# what the conductor built — most importantly which half of the inverted dry-run/apply
+# translation landed on the wire.
+
+cmd="$1"
+
+json_array() {
+  printf '['
+  first=1
+  for a in "$@"; do
+    if [ $first -eq 1 ]; then first=0; else printf ','; fi
+    printf '"%s"' "$a"
+  done
+  printf ']'
+}
+
+refuse() {
+  printf '{"ok":false,"burrow_cli":"0.1.0","engine":"burrow-engine","command":"%s","error":{"kind":"error","message":"%s","platform":"fixture"}}\n' "$cmd" "$1"
+  exit 2
+}
+
+has_flag() {
+  for a in "$@"; do
+    [ "$a" = "$needle" ] && return 0
+  done
+  return 1
+}
+
+needle="--raw";            has_flag "$@" && refuse "unknown $cmd option: --raw"
+needle="--watch-interval"; has_flag "$@" && refuse "unknown $cmd option: --watch-interval"
+
+needle="--watch";    has_flag "$@" && watch=1    || watch=0
+needle="--interval"; has_flag "$@" && interval=1 || interval=0
+needle="--progress"; has_flag "$@" && progress=1 || progress=0
+needle="--stream";   has_flag "$@" && stream=1   || stream=0
+
+# Each stream flag belongs to exactly the commands that implement it; elsewhere it is unknown.
+[ "$watch" = 1 ] && [ "$cmd" != "status" ] && refuse "unknown $cmd option: --watch"
+[ "$interval" = 1 ] && [ "$cmd" != "status" ] && refuse "unknown $cmd option: --interval"
+[ "$interval" = 1 ] && [ "$watch" = 0 ] && refuse "--interval only applies with --watch"
+[ "$progress" = 1 ] && [ "$cmd" != "analyze" ] && refuse "unknown $cmd option: --progress"
+if [ "$stream" = 1 ] && [ "$cmd" != "clean" ] && [ "$cmd" != "optimize" ] && [ "$cmd" != "purge" ]; then
+  refuse "unknown $cmd option: --stream"
+fi
+
+needle="--apply";   has_flag "$@" && apply=1 || apply=0
+needle="--dry-run"; has_flag "$@" && dry=1 || dry=0
+needle="-n";        has_flag "$@" && dry=1
+[ "$apply" = 1 ] && [ "$dry" = 1 ] && \
+  refuse "$cmd cannot take both --apply and --dry-run: --apply removes files and --dry-run guarantees it will not. Pass one."
+
+needle="--list";   has_flag "$@" && list=1 || list=0
+
+# `uninstall --list`: a bare array, no envelope. The one command that answers this way.
+if [ "$cmd" = "uninstall" ] && [ "$list" = 1 ]; then
+  printf '[{"name":"Fixture","bundle_id":"com.fixture.App","source":"App"}]\n'
+  exit 0
+fi
+
+# clean/optimize/purge --stream: NDJSON, one line per item, no envelope.
+if [ "$stream" = 1 ]; then
+  if [ "$apply" = 1 ]; then
+    printf '{"event":"removed","path":"/fixture/Caches/A","bytes":4}\n'
+    printf '{"event":"removed","path":"/fixture/Caches/B","bytes":8}\n'
+    printf '{"event":"done","freed_bytes":12,"freed_human":"12 B","moved_to_trash_bytes":12,"moved_to_trash_human":"12 B","removed":2,"failed":0,"protected":0,"invoked":%s}\n' "$(json_array "$@")"
+  else
+    printf '{"event":"would_remove","path":"/fixture/Caches/A","bytes":4}\n'
+    printf '{"event":"would_remove","path":"/fixture/Caches/B","bytes":8}\n'
+    printf '{"event":"done","dry_run":true,"would_free_bytes":12,"would_free_human":"12 B","count":2,"invoked":%s}\n' "$(json_array "$@")"
+  fi
+  exit 0
+fi
+
+status_data() {
+  printf '{"collected_at":"2026-06-25T10:30:00Z","host":"fixture","health_score":92,"cpu":{"usage":12.4},"invoked":%s}' "$(json_array "$@")"
+}
+
+# status --watch: one `status` data object per tick, no envelope, `BURROW_WATCH_FRAMES` ticks.
+if [ "$watch" = 1 ]; then
+  frames="${BURROW_WATCH_FRAMES:-2}"
+  i=0
+  while [ "$i" -lt "$frames" ]; do
+    printf '%s\n' "$(status_data "$@")"
+    i=$((i + 1))
+  done
+  exit 0
+fi
+
+# analyze --progress <path>: progress frames, then the result — or the error envelope, exit 1.
+if [ "$progress" = 1 ]; then
+  path=""
+  shift
+  for a in "$@"; do
+    case "$a" in
+      -*) ;;
+      *) [ -z "$path" ] && path="$a" ;;
+    esac
+  done
+  if [ ! -e "$path" ]; then
+    printf '{"ok":false,"burrow_cli":"0.1.0","engine":"burrow-engine","command":"analyze","error":{"kind":"error","message":"scan %s: No such file or directory","platform":"fixture"}}\n' "$path"
+    exit 1
+  fi
+  printf '{"type":"progress","files":10,"dirs":2,"bytes":4096,"path":"%s/a"}\n' "$path"
+  printf '{"type":"progress","files":20,"dirs":4,"bytes":8192,"path":"%s/b"}\n' "$path"
+  printf '{"type":"result","data":{"path":"%s","overview":false,"entries":[],"total_size":8192}}\n' "$path"
+  exit 0
+fi
+
+envelope() {
+  printf '{"ok":true,"burrow_cli":"0.1.0","engine":"burrow-engine","command":"%s","data":%s}\n' "$cmd" "$1"
+}
+
+case "$cmd" in
+  status)
+    envelope "$(status_data "$@")"
+    ;;
+  analyze)
+    envelope "$(printf '{"path":"/","overview":true,"entries":[],"total_size":0,"invoked":%s}' "$(json_array "$@")")"
+    ;;
+  *)
+    envelope "$(printf '{"invoked":%s}' "$(json_array "$@")")"
+    ;;
+esac

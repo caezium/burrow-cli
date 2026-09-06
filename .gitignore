@@ -1,0 +1,62 @@
+# build artifacts
+/dist/
+/build/
+/bin/
+*.exe
+
+# Go
+/vendor/
+
+# Rust
+/target/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# local engine binaries fetched at build time (vendored separately, not committed here)
+/engines/
+
+# release-build telemetry key — copy `.release.env.example` and fill it in; never commit it
+/.release.env
+
+# Local configuration and credentials; commit only placeholder examples.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local.env
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.mobileprovision
+
+# Local runtime state, diagnostic captures, and build reports.
+/.burrow/
+/artifacts/
+/captures/
+/diagnostics/
+/coverage/
+/scratch/
+/tmp/
+*.log
+*.dmp
+*.xcresult/
+
+# Local agent state; no private session material belongs in source snapshots.
+/.codex/
+/.claude/
+
+# Common local credential files; examples, public keys and fixtures stay trackable.
+/credentials.json
+/id_ed25519
+/id_rsa
+/id_ecdsa
+/.credentials/secrets.json
+/.ssh/id_ed25519
+/.ssh/id_rsa
+/.ssh/id_ecdsa

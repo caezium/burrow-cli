@@ -1,0 +1,37 @@
+{
+  "schema": "burrow.rules/v1",
+  "app": { "bundle_ids": ["com.google.Chrome"], "name": "Google Chrome" },
+  "rules": [
+    {
+      "id": "chrome.cache",
+      "category": "cache",
+      "risk": "safe",
+      "recommend": true,
+      "explain": "Rendered web resources Chrome regenerates on demand. Safe to delete; first page loads are slightly slower.",
+      "targets": [
+        { "path": "~/Library/Caches/Google/Chrome", "search": "walk_all" },
+        { "path": "~/Library/Application Support/Google/Chrome/Default/Code Cache", "search": "walk_all" }
+      ],
+      "action": { "type": "delete", "method": "trash" }
+    },
+    {
+      "id": "chrome.history",
+      "category": "history",
+      "risk": "risky",
+      "recommend": false,
+      "explain": "Browsing-history database. Deleting is destructive and not regenerable.",
+      "targets": [
+        { "path": "~/Library/Application Support/Google/Chrome/Default/History", "search": "file" }
+      ],
+      "action": { "type": "delete", "method": "trash" }
+    }
+  ],
+  "provenance": {
+    "source": "builtin",
+    "evidence": [
+      "https://www.chromium.org/developers/design-documents/network-stack/disk-cache/",
+      "cache paths cross-checked against mac-cleanup-py (Apache-2.0) chrome/chromium modules"
+    ],
+    "license": "Apache-2.0"
+  }
+}

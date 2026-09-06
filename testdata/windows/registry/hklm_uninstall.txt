@@ -1,0 +1,12 @@
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\MachineTool
+    DisplayName    REG_SZ    Machine Tool Pro
+    Publisher      REG_SZ    Machine Tools Incorporated
+    InstallLocation    REG_SZ    C:\Program Files\Machine Tool Pro
+    UninstallString    REG_EXPAND_SZ    "C:\Program Files\Machine Tool Pro\setup.exe" /remove
+
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\{12345678-1234-ABCD-9876-1234567890AB}
+    DisplayName    REG_SZ    MSI Fixture App
+    Publisher      REG_SZ    Installer Vendor
+    InstallLocation    REG_EXPAND_SZ    %ProgramFiles%\MSI Fixture App
+    WindowsInstaller    REG_DWORD    0x1
+    UninstallString    REG_SZ    MsiExec.exe /I{12345678-1234-ABCD-9876-1234567890AB}
