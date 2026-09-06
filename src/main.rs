@@ -694,7 +694,7 @@ fn run_gui(args: &[String]) -> ExitCode {
 fn engine_status() -> Result<String, output::Failure> {
     let bin = engine::resolve()?;
     let plan = engine::plan("status", &[])?;
-    engine::execute(&bin, &plan)
+    engine::execute_with_timeout(&bin, &plan, std::time::Duration::from_secs(60))
 }
 
 /// `burrow snapshot` — capture a status sample into the CLI-side history store.

@@ -74,7 +74,7 @@ carried the `burrow-engine` name until `32ec0f0`.
 grant was needed for this direction and none was looked for; both sides are one licensor's work
 under one licence. The MIT question in this migration runs the *other* way — see the open items.
 
-Every capability below was **ported, not rewritten**, and none is a clean-room reimplementation:
+Every capability below was transferred directly from this repository to the engine. This describes the repository transfer; each capability retains the original source mode recorded above, including Mode C work.
 
 | Capability | Engine module | Route | Evidence |
 |---|---|---|---|
