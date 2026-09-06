@@ -161,6 +161,23 @@ pub fn execute(dir: &Path, plan: &Plan) -> Result<String, String> {
     let out = platform::command(&bin, &args)?
         .output()
         .map_err(|e| format!("failed to run {}: {e}", bin.display()))?;
+    decode_output(&bin, out)
+}
+
+/// Scheduled status collection must finish even when the resolved engine stalls.
+/// Keep the directory adapter and its platform-specific argv handling intact;
+/// interactive and watch calls retain their native execution path.
+pub fn execute_with_timeout(
+    dir: &Path,
+    plan: &Plan,
+    timeout: std::time::Duration,
+) -> Result<String, String> {
+    let (bin, args) = resolve_exec(dir, plan)?;
+    let out = platform::output_with_timeout(platform::command(&bin, &args)?, timeout)?;
+    decode_output(&bin, out)
+}
+
+fn decode_output(bin: &Path, out: std::process::Output) -> Result<String, String> {
     if !out.status.success() {
         return Err(format!(
             "engine {} exited {}: {}",
@@ -193,6 +210,64 @@ mod tests {
     use super::*;
     fn a(v: &[&str]) -> Vec<String> {
         v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bounded_status_preserves_the_selected_engine_directory_and_error_contract() {
+        use std::os::unix::fs::PermissionsExt;
+        use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+        let id = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "burrow selected engine {} {id}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(dir.join("bin")).unwrap();
+        let bin = dir.join("bin/status-go");
+        std::fs::write(&bin, "#!/bin/sh\nprintf '%s\\n' \"$@\"\n").unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let plan = plan("status", &[]).unwrap();
+        assert_eq!(
+            execute_with_timeout(&dir, &plan, Duration::from_secs(2)).unwrap(),
+            "--json\n"
+        );
+
+        std::fs::write(&bin, "#!/bin/sh\nprintf 'fixture failure' >&2\nexit 7\n").unwrap();
+        let error = execute_with_timeout(&dir, &plan, Duration::from_secs(2)).unwrap_err();
+        assert!(
+            error.contains("exited") && error.contains("fixture failure"),
+            "{error}"
+        );
+
+        std::fs::write(&bin, "#!/bin/sh\nexec /bin/sleep 10\n").unwrap();
+        let started = Instant::now();
+        let error = execute_with_timeout(&dir, &plan, Duration::from_millis(100)).unwrap_err();
+        assert!(error.contains("timed out"), "{error}");
+        assert!(started.elapsed() < Duration::from_secs(2));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn bounded_status_preserves_batch_resolution_and_arguments() {
+        let dir = temp_engine_dir("bounded_status_batch");
+        std::fs::create_dir_all(dir.join("bin")).unwrap();
+        std::fs::write(
+            dir.join("bin/status-go.cmd"),
+            "@echo off\r\necho %*\r\nexit /b 0\r\n",
+        )
+        .unwrap();
+        let output = execute_with_timeout(
+            &dir,
+            &plan("status", &[]).unwrap(),
+            std::time::Duration::from_secs(5),
+        )
+        .unwrap();
+        assert_eq!(output.trim(), "--json");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
