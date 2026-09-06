@@ -1,0 +1,25 @@
+{
+  "schema": "burrow.rules/v1",
+  "app": { "bundle_ids": ["org.nodejs.npm"], "name": "npm" },
+  "rules": [
+    {
+      "id": "npm.cache",
+      "category": "cache",
+      "risk": "safe",
+      "recommend": true,
+      "explain": "npm content-addressable download cache; rebuilt on the next install (prefer `npm cache clean --force`).",
+      "targets": [
+        { "path": "~/.npm/_cacache", "search": "walk_all" }
+      ],
+      "action": { "type": "delete", "method": "trash" }
+    }
+  ],
+  "provenance": {
+    "source": "builtin",
+    "evidence": [
+      "mac-cleanup-py npm module (Apache-2.0): ~/.npm cache",
+      "kondo/npkill node profiles (MIT)"
+    ],
+    "license": "Apache-2.0"
+  }
+}

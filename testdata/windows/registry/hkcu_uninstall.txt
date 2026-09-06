@@ -1,0 +1,14 @@
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\ExampleUserApp
+    DisplayName    REG_SZ    Example User App
+    Publisher      REG_SZ    Example Software LLC
+    InstallLocation    REG_EXPAND_SZ    %LOCALAPPDATA%\Programs\Example User App
+    UninstallString    REG_SZ    "%LOCALAPPDATA%\Programs\Example User App\uninstall.exe" /uninstall
+
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\HiddenUserHelper
+    DisplayName    REG_SZ    Hidden User Helper
+    Publisher      REG_SZ    Example Software LLC
+    SystemComponent    REG_DWORD    0x1
+
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\NoDisplayName
+    Publisher      REG_SZ    Nameless Vendor
+    InstallLocation    REG_SZ    C:\Users\Alice\AppData\Local\Nameless Vendor

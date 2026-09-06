@@ -1,0 +1,23 @@
+[package]
+name = "burrow-cli"
+version = "0.0.1"
+edition = "2021"
+license = "LicenseRef-FSL-1.1-ALv2"
+description = "Agent-native macOS/Windows system-cleaning CLI — conductor over burrow-engine + fclones."
+repository = "https://github.com/caezium/burrow-cli"
+publish = false
+
+[[bin]]
+name = "burrow"
+path = "src/main.rs"
+
+[dependencies]
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
+# Permissive-only (enforced by deny.toml + CI): serde tree is MIT/Apache-2.0/Unicode-3.0.
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+trash = "5.2.6"
+
+[profile.release]
+strip = true
+lto = true

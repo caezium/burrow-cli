@@ -1,0 +1,12 @@
+#!/bin/sh
+# Test fixture standing in for the engine's Go analyze binary (--json[ --progress]).
+# With --progress it streams NDJSON (a progress event, then a result), like the real
+# `analyze --json --progress`; otherwise it emits the single batch JSON.
+for a in "$@"; do
+  if [ "$a" = "--progress" ]; then
+    printf '{"type":"progress","files":1,"dirs":0,"bytes":4,"path":"/x"}\n'
+    printf '{"type":"result","data":{"path":"/","overview":true,"entries":[],"total_size":0}}\n'
+    exit 0
+  fi
+done
+printf '{"path":"/","overview":true,"entries":[],"total_size":0}\n'

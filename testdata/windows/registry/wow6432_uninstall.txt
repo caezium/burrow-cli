@@ -1,0 +1,5 @@
+HKEY_LOCAL_MACHINE\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Legacy32Tool
+    DisplayName    REG_SZ    Legacy 32 Tool
+    Publisher      REG_SZ    Legacy Vendor
+    InstallLocation    REG_SZ    C:\Program Files (x86)\Legacy 32 Tool
+    UninstallString    REG_SZ    "C:\Program Files (x86)\Legacy 32 Tool\unins000.exe"

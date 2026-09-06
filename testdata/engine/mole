@@ -1,0 +1,10 @@
+#!/bin/sh
+# Test fixture: fake burrow-engine bash entrypoint. Echoes the args it received as JSON so
+# tests can assert the conductor built the right engine invocation (e.g. clean --dry-run).
+printf '{"invoked":['
+first=1
+for a in "$@"; do
+  if [ $first -eq 1 ]; then first=0; else printf ','; fi
+  printf '"%s"' "$a"
+done
+printf ']}\n'

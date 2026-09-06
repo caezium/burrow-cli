@@ -1,0 +1,3 @@
+#!/bin/sh
+# Test fixture standing in for the engine's Go status binary (--json).
+printf '{"collected_at":"2026-06-25T10:30:00Z","host":"fixture","health_score":92,"cpu":{"usage":12.4}}\n'

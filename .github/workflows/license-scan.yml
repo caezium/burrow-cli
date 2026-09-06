@@ -1,0 +1,21 @@
+name: license-scan
+
+# Fails the build if any copyleft / non-commercial license appears in Burrow CLI's
+# distributed dependencies. Burrow CLI is FSL-licensed and must never ship GPL/AGPL code.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  forbidden-licenses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cargo-deny (when a Cargo manifest exists)
+        if: ${{ hashFiles('Cargo.toml') != '' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - name: Scan for forbidden licenses
+        run: ./scripts/license-check.sh

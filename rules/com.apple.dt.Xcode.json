@@ -1,0 +1,37 @@
+{
+  "schema": "burrow.rules/v1",
+  "app": { "bundle_ids": ["com.apple.dt.Xcode"], "name": "Xcode" },
+  "rules": [
+    {
+      "id": "xcode.deriveddata",
+      "category": "dev-artifact",
+      "risk": "safe",
+      "recommend": true,
+      "explain": "Build intermediates and indexes; rebuilt on the next build. Close Xcode first.",
+      "targets": [
+        { "path": "~/Library/Developer/Xcode/DerivedData", "search": "walk_all" }
+      ],
+      "action": { "type": "delete", "method": "trash" }
+    },
+    {
+      "id": "xcode.archives",
+      "category": "dev-artifact",
+      "risk": "risky",
+      "recommend": false,
+      "explain": "Archives contain dSYMs needed to symbolicate App Store crash reports. Keep unless you are sure.",
+      "targets": [
+        { "path": "~/Library/Developer/Xcode/Archives", "search": "walk_all" }
+      ],
+      "action": { "type": "delete", "method": "trash" }
+    }
+  ],
+  "provenance": {
+    "source": "builtin",
+    "evidence": [
+      "mac-cleanup-py default_modules.py (Apache-2.0): xcode module (DerivedData, Archives)",
+      "DevCleaner heuristic (idea only, GPL): never auto-select archives — dSYMs",
+      "landscape doc section 1.4"
+    ],
+    "license": "Apache-2.0"
+  }
+}

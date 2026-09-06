@@ -1,0 +1,17 @@
+#!/bin/sh
+# Test fixture standing in for the fclones sidecar.
+# `group` emits a representative --format json report; the mutating actions consume the
+# report on stdin and emit a confirmation (so tests can assert the round-trip).
+case "$1" in
+  group)
+    printf '{"header":{"version":"0.35.0","stats":{"group_count":1,"total_file_count":2,"total_file_size":2048,"redundant_file_count":1,"redundant_file_size":1024}},"groups":[{"file_len":1024,"file_hash":"abc123","files":["/tmp/a","/tmp/b"]}]}\n'
+    ;;
+  dedupe|remove|link)
+    cat >/dev/null   # consume the report streamed on stdin
+    printf '{"deduped":true,"action":"%s"}\n' "$1"
+    ;;
+  *)
+    echo "fake fclones: unknown subcommand '$1'" >&2
+    exit 2
+    ;;
+esac
