@@ -300,6 +300,21 @@ pub fn execute(bin: &Path, plan: &Plan) -> Result<String, Failure> {
     let out = platform::command(bin, &plan.args)?
         .output()
         .map_err(|e| Failure::io(format!("failed to run {}", bin.display()), &e))?;
+    decode_output(bin, out)
+}
+
+/// A bounded buffered request for scheduled status collection; interactive/watch calls continue
+/// to use their existing execution path.
+pub fn execute_with_timeout(
+    bin: &Path,
+    plan: &Plan,
+    timeout: std::time::Duration,
+) -> Result<String, Failure> {
+    let out = platform::output_with_timeout(platform::command(bin, &plan.args)?, timeout)?;
+    decode_output(bin, out)
+}
+
+fn decode_output(bin: &Path, out: std::process::Output) -> Result<String, Failure> {
     let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
     let failed_envelope = serde_json::from_str::<serde_json::Value>(stdout.trim())
         .ok()

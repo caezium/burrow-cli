@@ -182,6 +182,98 @@ where
     Ok(child)
 }
 
+/// Capture one finite engine request without allowing a stalled process or inherited pipe to
+/// block a scheduled job forever. Native terminal/watch execution keeps its existing lifetime.
+pub fn output_with_timeout(
+    mut command: Command,
+    timeout: std::time::Duration,
+) -> Result<std::process::Output, Failure> {
+    use std::io::Read;
+    use std::process::Stdio;
+    use std::sync::mpsc;
+    use std::time::Instant;
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    let start = Instant::now();
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| Failure::io("failed to start engine", &e))?;
+    let (tx, rx) = mpsc::channel();
+    let mut readers: Vec<(usize, Box<dyn Read + Send>)> = vec![
+        (0, Box::new(child.stdout.take().expect("piped stdout"))),
+        (1, Box::new(child.stderr.take().expect("piped stderr"))),
+    ];
+    for (index, mut pipe) in readers.drain(..) {
+        let tx = tx.clone();
+        std::thread::spawn(move || {
+            let mut bytes = Vec::new();
+            let result = pipe.read_to_end(&mut bytes).map(|_| bytes);
+            let _ = tx.send((index, result));
+        });
+    }
+    drop(tx);
+    let mut captured: [Option<Vec<u8>>; 2] = [None, None];
+    let mut status = None;
+    let result = loop {
+        for (index, result) in rx.try_iter() {
+            match result {
+                Ok(bytes) => captured[index] = Some(bytes),
+                Err(e) => {
+                    stop_child(&mut child);
+                    return Err(Failure::io("failed to read engine output", &e));
+                }
+            }
+        }
+        if status.is_none() {
+            match child.try_wait() {
+                Ok(found) => status = found,
+                Err(e) => break Err(Failure::io("failed to wait for engine", &e)),
+            }
+        }
+        if let Some(status) = status {
+            if captured.iter().all(Option::is_some) {
+                break Ok(std::process::Output {
+                    status,
+                    stdout: captured[0].take().unwrap(),
+                    stderr: captured[1].take().unwrap(),
+                });
+            }
+        }
+        if start.elapsed() >= timeout {
+            break Err(Failure::process_failed(format!(
+                "engine request timed out after {:.3}s",
+                timeout.as_secs_f64()
+            )));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    };
+    if result.is_err() {
+        stop_child(&mut child);
+    }
+    result
+}
+
+fn stop_child(child: &mut std::process::Child) {
+    #[cfg(unix)]
+    unsafe {
+        unsafe extern "C" {
+            fn kill(pid: i32, signal: i32) -> i32;
+        }
+        // The request owns a fresh process group, including descendants holding a pipe open.
+        if let Ok(pid) = i32::try_from(child.id()) {
+            kill(-pid, 9);
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
 fn is_batch_program(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
@@ -210,6 +302,46 @@ fn command_path(path: &Path, windows: bool) -> Result<PathBuf, Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bounded_output_stops_a_stalled_native_child() {
+        const MODE: &str = "BURROW_TEST_BOUNDED_OUTPUT_CHILD";
+        if std::env::var_os(MODE).is_some() {
+            println!("partial stdout");
+            eprintln!("partial stderr");
+            std::thread::sleep(std::time::Duration::from_secs(10));
+            return;
+        }
+        let mut child = Command::new(std::env::current_exe().unwrap());
+        child
+            .args([
+                "--exact",
+                "platform::tests::bounded_output_stops_a_stalled_native_child",
+                "--nocapture",
+            ])
+            .env(MODE, "1");
+        let started = std::time::Instant::now();
+        let error = output_with_timeout(child, std::time::Duration::from_millis(100)).unwrap_err();
+        assert_eq!(error.kind(), &crate::output::ErrorKind::ProcessFailed);
+        assert!(error.message.contains("timed out"));
+        assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn bounded_output_waits_for_pipe_eof_and_preserves_exit_output() {
+        let mut child = Command::new("/bin/sh");
+        child.args(["-c", "printf stdout; printf stderr >&2; exit 7"]);
+        let out = output_with_timeout(child, std::time::Duration::from_secs(2)).unwrap();
+        assert_eq!(out.status.code(), Some(7));
+        assert_eq!(out.stdout, b"stdout");
+        assert_eq!(out.stderr, b"stderr");
+        let mut descendant = Command::new("/bin/sh");
+        descendant.args(["-c", "sleep 10 & exit 0"]);
+        let start = std::time::Instant::now();
+        assert!(output_with_timeout(descendant, std::time::Duration::from_millis(100)).is_err());
+        assert!(start.elapsed() < std::time::Duration::from_secs(2));
+    }
 
     #[test]
     fn env_override_wins_for_config() {
